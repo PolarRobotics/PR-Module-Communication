@@ -1,33 +1,51 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#define ADDRESS 0x41  // slave address
-#define SDA 21
-#define SDL 22
-#define FREQUENCY 400000
+#define ADDRESS 0x41 // slave address
+byte error;
+int lineNum = 0;
+uint8_t message = 0x6; 
+bool sent = false;
+bool received = false;
+
+void checkError(byte error);
 
 void setup(){
-    // set up SDA and SDL
-    Wire.begin();
-    Wire.setPins(SDA, SDL);
-
-    Wire.setClock(FREQUENCY);
+    Wire.begin(21, 22);
+    Wire.setClock(400000); 
     Serial.begin(115200);
 }
 
 void loop(){
-    // the byte to be sent to pi pico
-    uint8_t message = 0x15;
+    // Writing
+    while(!sent){
+        Wire.beginTransmission(ADDRESS);
+        Wire.write(message);
+        error = Wire.endTransmission();
+        Serial.printf("[%d] ", lineNum++);
+        checkError(error);
 
-    // send the data
-    Wire.beginTransmission(ADDRESS);
-    Wire.write(message);
+        delay(1000);
+    }
+    received = false;
+    // READING
+    while(!received){
+        Wire.requestFrom(ADDRESS,1);    //strlen(message)
+        while (Wire.available()) {
+            byte data = Wire.read();  // Read the byte received
+            Serial.print("Data received: ");
+            received = true;
+            Serial.println(data);
+        }
+    }
+    sent = false;
+}
 
-    // check for errors in transmission
-    int error = Wire.endTransmission();
+void checkError(byte error){
     switch(error) {
         case 0:
             Serial.println("Transmission successful");
+            sent = true;
             break;
         case 1:
             Serial.println("NACK on transmit of address");
@@ -47,14 +65,4 @@ void loop(){
         default:
             Serial.println("Unknown error");
     }
-
-    delay(1000);
-
-    Wire.requestFrom(ADDRESS,1);
-
-    byte data = Wire.read();  // Read the byte received
-    Serial.print("Data received: ");
-    Serial.println(data);
-
-    delay(1000);
 }
