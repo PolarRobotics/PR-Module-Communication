@@ -4,6 +4,7 @@
 #define ADDRESS 0x41 // slave address
 byte error;
 int lineNum = 0;
+int size = 32;
 uint8_t message = 0x6; 
 bool sent = false;
 bool received = false;
@@ -11,34 +12,42 @@ bool received = false;
 void checkError(byte error);
 
 void setup(){
-    Wire.begin(21, 22);
-    Wire.setClock(400000); 
+    Wire.begin(21, 22, 400000);
+    //Wire.setClock(400000); 
     Serial.begin(115200);
+    Wire.setTimeOut(30);
 }
 
 void loop(){
     // Writing
-    while(!sent){
-        Wire.beginTransmission(ADDRESS);
-        Wire.write(message);
-        error = Wire.endTransmission();
-        Serial.printf("[%d] ", lineNum++);
-        checkError(error);
+    // while(!sent){
+    //     Wire.beginTransmission(ADDRESS);
+    //     Wire.write(message);
+    //     error = Wire.endTransmission();
+    //     Serial.printf("[%d] ", lineNum++);
+    //     checkError(error);
 
-        delay(1000);
-    }
+    //     delay(500);
+    // }
     received = false;
     // READING
     while(!received){
-        Wire.requestFrom(ADDRESS,1);    //strlen(message)
-        while (Wire.available()) {
-            byte data = Wire.read();  // Read the byte received
-            Serial.print("Data received: ");
+        Wire.requestFrom(ADDRESS,size);    //strlen(message)
+        if(Wire.available()) {
+            signed int data = 0;
+            for(int i = 0; i < size; i++){
+                data += Wire.read();
+                //delay(50);
+            }
             received = true;
+            //Serial.printf("Data received: %d\n", data);
+            Serial.print("Data received: ");
             Serial.println(data);
+            Wire.flush();
+            //delay(250);
         }
     }
-    sent = false;
+    // sent = false;
 }
 
 void checkError(byte error){
