@@ -4,7 +4,7 @@
 #define ADDRESS 0x41 // slave address
 byte error;
 int lineNum = 0;
-int size = 32;
+int size = 5;
 uint8_t message = 0x6; 
 bool sent = false;
 bool received = false;
@@ -34,20 +34,27 @@ void loop(){
     while(!received){
         Wire.requestFrom(ADDRESS,size);    //strlen(message)
         if(Wire.available()) {
-            signed int data = 0;
+            int discard = 0;
+            int data[size] = {0,0,0,0,0};
             for(int i = 0; i < size; i++){
-                data += Wire.read();
-                //delay(50);
+                data[i] = Wire.read();
             }
+            // for(int i = 0; i < size - 1; i++){
+            //     Serial.printf("%x" ,data[i]);
+            //     Serial.print("  ");
+            // }
+            int32_t combinedData = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | (data[3]);
+            Serial.print("Speed: ");
+            Serial.println(combinedData);
+
             received = true;
             //Serial.printf("Data received: %d\n", data);
-            Serial.print("Data received: ");
-            Serial.println(data);
+            //Serial.print("Data received: ");
+            //Serial.println(data);
             Wire.flush();
             //delay(250);
         }
     }
-    // sent = false;
 }
 
 void checkError(byte error){
