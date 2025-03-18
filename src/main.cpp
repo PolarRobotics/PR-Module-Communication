@@ -1,84 +1,78 @@
 #include <Arduino.h>
 #include <Wire.h>
+#include <Adafruit_PWMServoDriver.h>
 
 #define ADDRESS 0x41 // slave address
-byte error;
-int lineNum = 0;
-int size = 5;
-uint8_t message = 0x6; 
-bool sent = false;
-bool received = false;
+#define PWM_ADDRESS 0x40 // PWM Module address
 
-void checkError(byte error);
+#define PWM_RES 16
+#define PWM_CHANNEL 0   // ESP32 has 16 channels which can generate 16 independent waveforms
+#define PWM_FREQ 1000   // Recall that Arduino Uno is ~490 Hz. Official ESP32 example uses 5,000Hz
+
+#define SERVOMIN 1000
+#define SERVOMAX 2000
+
+#define MAX_MOTORS 16
+
+int dataSize = 5;
+int pwmSize = 2;
+
+typedef struct servo{
+    int pin;
+    int channel;
+};
+
+int motorCount = 0;
+int servo[MAX_MOTORS];
+
+const int DELAY_MS = 4;  // delay between fade increments
+int _ledFadeStep = 5;
+
+Adafruit_PWMServoDriver pca = Adafruit_PWMServoDriver(PWM_ADDRESS);
 
 void setup(){
     Wire.begin(21, 22, 400000);
-    //Wire.setClock(400000); 
     Serial.begin(115200);
     Wire.setTimeOut(30);
+    //ledcSetup(PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
+    pca.begin();
+    pca.setPWMFreq(PWM_FREQ);
+    //ledcAttachPin(uint8_t pin, uint8_t channel);
+    //ledcAttachPin(LED_OUTPUT_PIN, PWM_CHANNEL);
 }
 
-void loop(){
-    // Writing
-    // while(!sent){
-    //     Wire.beginTransmission(ADDRESS);
-    //     Wire.write(message);
-    //     error = Wire.endTransmission();
-    //     Serial.printf("[%d] ", lineNum++);
-    //     checkError(error);
-
-    //     delay(500);
-    // }
-    received = false;
+void loop(){  
+    //ledcWrite(PWM_CHANNEL,MAX_DUTY_CYCLE);
+    //ledcWrite(PWM_CHANNEL,0);
     // READING
-    while(!received){
-        Wire.requestFrom(ADDRESS,size);    //strlen(message)
-        if(Wire.available()) {
-            int discard = 0;
-            int data[size] = {0,0,0,0,0};
-            for(int i = 0; i < size; i++){
-                data[i] = Wire.read();
-            }
-            // for(int i = 0; i < size - 1; i++){
-            //     Serial.printf("%x" ,data[i]);
-            //     Serial.print("  ");
-            // }
-            int32_t combinedData = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | (data[3]);
-            Serial.print("Speed: ");
-            Serial.println(combinedData);
-
-            received = true;
-            //Serial.printf("Data received: %d\n", data);
-            //Serial.print("Data received: ");
-            //Serial.println(data);
-            Wire.flush();
-            //delay(250);
+    Wire.requestFrom(ADDRESS,dataSize);
+    if(Wire.available() == dataSize) {
+        int data[dataSize] = {0,0,0,0,0};
+        for(int i = 0; i < dataSize; i++){
+            data[i] = Wire.read();
         }
+        for(int i = 0; i < dataSize; i++){
+            Serial.printf("%x" ,data[i]);
+            Serial.print("  ");
+        }
+        int32_t combinedData = (data[0] << 24) | (data[1] << 16) | (data[2] << 8) | (data[3]);
+        Serial.print("Speed: ");
+        Serial.println(combinedData);
+        //Serial.printf("Data received: %d\n", data);
+        //Serial.print("Data received: ");
+        //Serial.println(data);
     }
-}
-
-void checkError(byte error){
-    switch(error) {
-        case 0:
-            Serial.println("Transmission successful");
-            sent = true;
-            break;
-        case 1:
-            Serial.println("NACK on transmit of address");
-            break;
-        case 2:
-            Serial.println("NACK after transmit of data byte");
-            break;
-        case 3:
-            Serial.println("Master mode function disallowed");
-            break;
-        case 4:
-            Serial.println("Bus error");
-            break;
-        case 5:
-            Serial.println("Overrun error");
-            break;
-        default:
-            Serial.println("Unknown error");
+    else Serial.println("error");
+    Wire.flush();
+    Wire.requestFrom(PWM_ADDRESS,pwmSize);
+    if(Wire.available() == pwmSize){
+        int pwmData[pwmSize] = {0,0};
+        for(int i = 0; i < pwmSize; i++){
+            pwmData[i] = Wire.read();
+        }
+        int8_t combinedPWM = (pwmData[0] << 8 | pwmData[1]);
+        Serial.print("PWM data: ");
+        Serial.println(combinedPWM);
     }
+     
 }
