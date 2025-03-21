@@ -7,10 +7,12 @@
 
 #define PWM_RES 16
 #define PWM_CHANNEL 0   // ESP32 has 16 channels which can generate 16 independent waveforms
-#define PWM_FREQ 1000   // Recall that Arduino Uno is ~490 Hz. Official ESP32 example uses 5,000Hz
+#define PWM_PERIOD 0.0025
+#define PWM_FREQ 1/PWM_PERIOD   // Recall that Arduino Uno is ~490 Hz. Official ESP32 example uses 5,000Hz
+#define PWM_MAXDUTY (1 << PWM_RES) - 1
 
-#define SERVOMIN 1000
-#define SERVOMAX 2000
+#define PWM_MIN 1000
+#define PWM_MAX 2000
 
 #define MAX_MOTORS 16
 
@@ -37,6 +39,7 @@ void setup(){
     //ledcSetup(PWM_CHANNEL, PWM_FREQ, PWM_RESOLUTION);
     pca.begin();
     pca.setPWMFreq(PWM_FREQ);
+    
     //ledcAttachPin(uint8_t pin, uint8_t channel);
     //ledcAttachPin(LED_OUTPUT_PIN, PWM_CHANNEL);
 }
@@ -64,15 +67,10 @@ void loop(){
     }
     else Serial.println("error");
     Wire.flush();
-    Wire.requestFrom(PWM_ADDRESS,pwmSize);
-    if(Wire.available() == pwmSize){
-        int pwmData[pwmSize] = {0,0};
-        for(int i = 0; i < pwmSize; i++){
-            pwmData[i] = Wire.read();
-        }
-        int8_t combinedPWM = (pwmData[0] << 8 | pwmData[1]);
-        Serial.print("PWM data: ");
-        Serial.println(combinedPWM);
-    }
+    int fwd = random(-1,1);
+    int dutyCyclePercentage = map(fwd, -1, 1, 0, 100); // fwd will be 
+    int pwmValue = map(dutyCyclePercentage, 0, 100, 0, 4095);
+
+    pca.setPWM(motorCount, PWM_MIN, pwmValue);
      
 }
